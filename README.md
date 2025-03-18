@@ -1,6 +1,7 @@
 # ULID (Universally Unique Lexicographically Sortable Identifier) for Go
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/cloudresty/goulid.svg)](https://pkg.go.dev/github.com/cloudresty/goulid)
+[![Go Tests](https://github.com/cloudresty/goulid/actions/workflows/test.yaml/badge.svg)](https://github.com/cloudresty/goulid/actions/workflows/test.yaml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/cloudresty/goulid)](https://goreportcard.com/report/github.com/cloudresty/goulid)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
