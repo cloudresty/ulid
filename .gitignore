@@ -1,0 +1,35 @@
+# Binaries
+*.exe
+*.dll
+*.o
+*.a
+
+# Test binary and results
+*.test
+*.out
+/testdata
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Go modules
+/vendor/
+go.sum
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*.cache
+
+# Log files
+*.log
+
+# IDE specific files
+.idea/
+*.iml
+
+# OS generated files
+.DS_Store
+Thumbs.db
