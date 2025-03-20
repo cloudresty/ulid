@@ -12,6 +12,7 @@ import (
 var (
 	versionFlag = flag.Bool("version", false, "Print version information")
 	timeFlag    = flag.Uint64("time", 0, "Generate ULID with specified timestamp (milliseconds)")
+	version     string // This will be set during build
 )
 
 func main() {
@@ -19,7 +20,7 @@ func main() {
 	flag.Parse()
 
 	if *versionFlag {
-		fmt.Println("ulid v1.0.5")
+		fmt.Println("ulid", version, "- https://github.com/cloudresty/goulid")
 		os.Exit(0)
 	}
 
