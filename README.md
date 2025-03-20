@@ -3,7 +3,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/cloudresty/goulid.svg)](https://pkg.go.dev/github.com/cloudresty/goulid)
 [![Go Tests](https://github.com/cloudresty/goulid/actions/workflows/test.yaml/badge.svg)](https://github.com/cloudresty/goulid/actions/workflows/test.yaml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/cloudresty/goulid)](https://goreportcard.com/report/github.com/cloudresty/goulid)
-[![GitHub Tag](https://img.shields.io/github/v/tag/cloudresty/goulid?label=Release)](https://github.com/cloudresty/goulid/tags)
+[![GitHub Tag](https://img.shields.io/github/v/tag/cloudresty/goulid?label=Version)](https://github.com/cloudresty/goulid/tags)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 &nbsp;
@@ -62,7 +62,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/cloudresty/goulid"
+    ulid "github.com/cloudresty/goulid"
 )
 
 func main() {
@@ -110,7 +110,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/cloudresty/goulid"
+    ulid "github.com/cloudresty/goulid"
 )
 
 type User struct {
@@ -161,7 +161,7 @@ import (
     "go.mongodb.org/mongo-driver/mongo"
     "go.mongodb.org/mongo-driver/mongo/options"
 
-    "github.com/cloudresty/goulid"
+    ulid "github.com/cloudresty/goulid"
 )
 
 type Product struct {
@@ -234,7 +234,7 @@ import (
 
     _ "github.com/lib/pq" // PostgreSQL driver
 
-    "github.com/cloudresty/goulid"
+    ulid "github.com/cloudresty/goulid"
 )
 
 type Order struct {
