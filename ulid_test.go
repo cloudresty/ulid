@@ -103,3 +103,26 @@ func TestRandomnessOverflow(t *testing.T) {
 		t.Errorf("Expected error for randomness overflow")
 	}
 }
+
+// Benchmark functions
+func BenchmarkNew(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_, _ = New()
+	}
+}
+
+func BenchmarkParse(b *testing.B) {
+	ulidStr, _ := New()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = Parse(ulidStr)
+	}
+}
+
+func BenchmarkString(b *testing.B) {
+	ulid, _ := Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = ulid.String()
+	}
+}
