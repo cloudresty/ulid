@@ -61,10 +61,25 @@ This implementation is highly optimized for speed and efficiency:
 ### Benchmark Results
 
 ```plaintext
-BenchmarkNew-10                 5000000    213 ns/op    48 B/op    2 allocs/op
-BenchmarkParse-10              10000000    120 ns/op    32 B/op    1 allocs/op
-BenchmarkString-10             20000000     85 ns/op    32 B/op    1 allocs/op
+goos: darwin
+goarch: arm64
+pkg: github.com/cloudresty/ulid
+cpu: Apple M1 Max
+BenchmarkNew-10          7565216               151.6 ns/op            32 B/op          1 allocs/op
+BenchmarkParse-10       56834553                20.89 ns/op            0 B/op          0 allocs/op
+BenchmarkString-10      50176750                24.70 ns/op           32 B/op          1 allocs/op
 ```
+
+### Latest Performance Results (Updated 2025-06-16)
+
+Run `cd benchmarks && go run benchmark.go` to generate fresh benchmark results:
+
+* **Generation Rate**: ~6.18 million ULIDs/second
+* **Average Latency**: ~161ns per ULID
+* **Memory Efficiency**: 32B/op, 1 alloc/op
+* **Throughput**: 100,000 ULIDs in ~16ms
+
+See [benchmarks/RESULTS.md](benchmarks/RESULTS.md) for detailed performance analysis and system information.
 
 &nbsp;
 
@@ -376,9 +391,28 @@ The `New()` and `NewTime()` functions are thread-safe, ensuring safe concurrent 
 
 &nbsp;
 
-## Monotonicity Details
+## Benchmarking
 
-When generating ULIDs within the same millisecond, the package ensures monotonicity by incrementing the randomness component. If the randomness component reaches its maximum value, the timestamp is incremented.
+To run comprehensive benchmarks and generate a detailed performance report:
+
+```bash
+cd benchmarks
+go run benchmark.go
+```
+
+This will generate a `RESULTS.md` file with:
+
+* Detailed performance metrics
+* System information
+* Optimization techniques used
+* Usage examples
+* Comparison data
+
+For standard Go benchmarks:
+
+```bash
+go test -bench=. -benchmem
+```
 
 &nbsp;
 
