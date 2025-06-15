@@ -2,81 +2,163 @@ package ulid
 
 import (
 	"crypto/rand"
-	"encoding/base32"
 	"errors"
-	"math/big"
 	"sync"
 	"time"
 )
 
 const (
-	encodedLength  = 26
-	timestampBits  = 48
-	randomnessBits = 80
-	maxTimestamp   = (1 << timestampBits) - 1
+	encodedLength   = 26
+	timestampBits   = 48
+	randomnessBits  = 80
+	randomnessBytes = 10 // 80 bits = 10 bytes
+	timestampBytes  = 6  // 48 bits = 6 bytes
+	totalBytes      = timestampBytes + randomnessBytes
+	maxTimestamp    = (1 << timestampBits) - 1
 )
 
+// Crockford Base32 alphabet in lowercase for better readability
+const crockfordAlphabet = "0123456789abcdefghjkmnpqrstvwxyz"
+
 var (
-	encoding       = base32.NewEncoding("0123456789ABCDEFGHJKMNPQRSTVWXYZ").WithPadding(base32.NoPadding)
+	// Pre-computed encoding/decoding tables for performance
+	encodeTable [32]byte
+	decodeTable [256]byte
+
+	// Monotonicity state
 	lastTime       uint64
-	lastRandomness *big.Int
+	lastRandomness [randomnessBytes]byte
 	mutex          sync.Mutex
-	maxRandomness  *big.Int
 )
 
 func init() {
-	maxRandomness = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), randomnessBits), big.NewInt(1))
+	// Initialize encoding table
+	copy(encodeTable[:], crockfordAlphabet)
+
+	// Initialize decoding table with invalid values
+	for i := range decodeTable {
+		decodeTable[i] = 0xFF
+	}
+
+	// Map valid characters to their values (case insensitive)
+	for i, c := range crockfordAlphabet {
+		decodeTable[c] = byte(i)
+		if c >= 'a' && c <= 'z' {
+			decodeTable[c-'a'+'A'] = byte(i) // uppercase variants
+		}
+	}
+
+	// Handle ambiguous characters as per Crockford spec
+	decodeTable['I'] = decodeTable['1']
+	decodeTable['i'] = decodeTable['1']
+	decodeTable['L'] = decodeTable['1']
+	decodeTable['l'] = decodeTable['1']
+	decodeTable['O'] = decodeTable['0']
+	decodeTable['o'] = decodeTable['0']
+	decodeTable['U'] = decodeTable['V']
+	decodeTable['u'] = decodeTable['v']
 }
 
 // ULID represents a Universally Unique Lexicographically Sortable Identifier.
 type ULID struct {
 	timestamp  uint64
-	randomness *big.Int
+	randomness [randomnessBytes]byte
+}
+
+// fastEncode encodes 16 bytes to 26-character string using Crockford Base32
+func fastEncode(data [totalBytes]byte) string {
+	result := make([]byte, encodedLength)
+
+	// Convert 16 bytes (128 bits) to base32 (5 bits per char = 26 chars)
+	var acc uint64
+	var bits uint
+	j := 0
+
+	for i := 0; i < totalBytes; i++ {
+		acc = (acc << 8) | uint64(data[i])
+		bits += 8
+
+		for bits >= 5 {
+			bits -= 5
+			result[j] = encodeTable[(acc>>bits)&0x1F]
+			j++
+		}
+	}
+
+	// Handle remaining bits
+	if bits > 0 {
+		result[j] = encodeTable[(acc<<(5-bits))&0x1F]
+	}
+
+	return string(result)
+}
+
+// fastDecode decodes 26-character string to 16 bytes
+func fastDecode(s string) ([totalBytes]byte, error) {
+	var result [totalBytes]byte
+
+	if len(s) != encodedLength {
+		return result, errors.New("invalid ULID length")
+	}
+
+	var acc uint64
+	var bits uint
+	j := 0
+
+	for i := 0; i < encodedLength; i++ {
+		if int(s[i]) >= len(decodeTable) {
+			return result, errors.New("invalid character in ULID")
+		}
+
+		val := decodeTable[s[i]]
+		if val == 0xFF {
+			return result, errors.New("invalid character in ULID")
+		}
+
+		acc = (acc << 5) | uint64(val)
+		bits += 5
+
+		if bits >= 8 && j < totalBytes {
+			bits -= 8
+			result[j] = byte(acc >> bits)
+			j++
+		}
+	}
+
+	return result, nil
 }
 
 // String returns the canonical string representation of the ULID.
 func (u ULID) String() string {
-	timestampBytes := make([]byte, 6)
-	for i := 5; i >= 0; i-- {
-		timestampBytes[i] = byte(u.timestamp & 0xFF)
-		u.timestamp >>= 8
+	var data [totalBytes]byte
+
+	// Encode timestamp (big-endian)
+	for i := 0; i < timestampBytes; i++ {
+		data[i] = byte(u.timestamp >> (8 * (timestampBytes - 1 - i)))
 	}
 
-	randomnessBytes := u.randomness.Bytes()
+	// Copy randomness
+	copy(data[timestampBytes:], u.randomness[:])
 
-	// Pad randomnessBytes to 10 bytes if needed.
-	if len(randomnessBytes) < 10 {
-		paddedRandomnessBytes := make([]byte, 10)
-		copy(paddedRandomnessBytes[10-len(randomnessBytes):], randomnessBytes)
-		randomnessBytes = paddedRandomnessBytes
-	}
-
-	combinedBytes := append(timestampBytes, randomnessBytes...)
-	encoded := encoding.EncodeToString(combinedBytes)
-
-	return encoded
+	return fastEncode(data)
 }
 
 // Parse parses a ULID string and returns a ULID struct.
 func Parse(s string) (ULID, error) {
-	if len(s) != encodedLength {
-		return ULID{}, errors.New("invalid ULID length")
-	}
-
-	decoded, err := encoding.DecodeString(s)
+	data, err := fastDecode(s)
 	if err != nil {
 		return ULID{}, err
 	}
 
-	timestampBytes := decoded[:6]
-	randomnessBytes := decoded[6:]
-
+	// Extract timestamp (big-endian)
 	timestamp := uint64(0)
-	for _, b := range timestampBytes {
-		timestamp = (timestamp << 8) | uint64(b)
+	for i := 0; i < timestampBytes; i++ {
+		timestamp = (timestamp << 8) | uint64(data[i])
 	}
 
-	randomness := new(big.Int).SetBytes(randomnessBytes)
+	// Extract randomness
+	var randomness [randomnessBytes]byte
+	copy(randomness[:], data[timestampBytes:])
 
 	return ULID{
 		timestamp:  timestamp,
@@ -89,16 +171,37 @@ func (u ULID) GetTime() uint64 {
 	return u.timestamp
 }
 
-func generateRandomness() (*big.Int, error) {
-	randomBytes := make([]byte, 10)
-	_, err := rand.Read(randomBytes)
-	if err != nil {
-		return nil, err
+// generateRandomness generates cryptographically secure random bytes
+func generateRandomness() ([randomnessBytes]byte, error) {
+	var randomness [randomnessBytes]byte
+	_, err := rand.Read(randomness[:])
+	return randomness, err
+}
+
+// incrementRandomness increments the randomness component by 1
+// Returns true if overflow occurred
+func incrementRandomness(r *[randomnessBytes]byte) bool {
+	for i := randomnessBytes - 1; i >= 0; i-- {
+		r[i]++
+		if r[i] != 0 {
+			return false // No overflow
+		}
 	}
-	randomness := new(big.Int).SetBytes(randomBytes)
+	return true // Overflow occurred
+}
 
-	return randomness.Mod(randomness, new(big.Int).Add(maxRandomness, big.NewInt(1))), nil
-
+// compareRandomness compares two randomness arrays
+// Returns: -1 if a < b, 0 if a == b, 1 if a > b
+func compareRandomness(a, b [randomnessBytes]byte) int {
+	for i := 0; i < randomnessBytes; i++ {
+		if a[i] < b[i] {
+			return -1
+		}
+		if a[i] > b[i] {
+			return 1
+		}
+	}
+	return 0
 }
 
 // New returns a new ULID.
@@ -120,26 +223,28 @@ func NewTime(timestamp uint64) (string, error) {
 		return "", err
 	}
 
+	// Handle monotonicity
 	if timestamp == lastTime {
-		if lastRandomness != nil && randomness.Cmp(lastRandomness) <= 0 {
-			randomness = new(big.Int).Add(lastRandomness, big.NewInt(1))
-
-			if randomness.Cmp(maxRandomness) > 0 {
-				//Randomness wrapped around. Increment time.
+		// Check if we need to increment randomness for monotonicity
+		if compareRandomness(randomness, lastRandomness) <= 0 {
+			randomness = lastRandomness
+			if incrementRandomness(&randomness) {
+				// Randomness overflow, increment timestamp
 				timestamp++
+				if timestamp > maxTimestamp {
+					return "", errors.New("timestamp out of range due to randomness exhaustion")
+				}
+				// Generate new randomness for new timestamp
 				randomness, err = generateRandomness()
 				if err != nil {
 					return "", err
-				}
-				if timestamp > maxTimestamp {
-					return "", errors.New("timestamp out of range, due to randomness exhaustion")
 				}
 			}
 		}
 	}
 
 	lastTime = timestamp
-	lastRandomness = new(big.Int).Set(randomness)
+	lastRandomness = randomness
 
 	ulid := ULID{
 		timestamp:  timestamp,

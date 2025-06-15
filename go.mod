@@ -1,3 +1,3 @@
-module github.com/cloudresty/goulid
+module github.com/cloudresty/ulid
 
 go 1.24.1

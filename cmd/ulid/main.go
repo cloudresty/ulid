@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	ulid "github.com/cloudresty/goulid"
+	ulid "github.com/cloudresty/ulid"
 )
 
 var (
@@ -20,7 +20,7 @@ func main() {
 	flag.Parse()
 
 	if *versionFlag {
-		fmt.Println("ulid", version, "- https://github.com/cloudresty/goulid")
+		fmt.Println("ulid", version, "- https://github.com/cloudresty/ulid")
 		os.Exit(0)
 	}
 

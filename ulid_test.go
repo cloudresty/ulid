@@ -1,14 +1,16 @@
 package ulid
 
 import (
-	"math/big"
 	"testing"
 	"time"
 )
 
 func TestULIDEncodingDecoding(t *testing.T) {
 	timestamp := uint64(time.Now().UnixMilli())
-	randomness := new(big.Int).SetInt64(123456789)
+	var randomness [randomnessBytes]byte
+	for i := range randomness {
+		randomness[i] = byte(i * 13) // Some test pattern
+	}
 
 	ulid := ULID{
 		timestamp:  timestamp,
@@ -26,8 +28,8 @@ func TestULIDEncodingDecoding(t *testing.T) {
 		t.Errorf("Timestamp mismatch: got %d, expected %d", decoded.timestamp, timestamp)
 	}
 
-	if decoded.randomness.Cmp(randomness) != 0 {
-		t.Errorf("Randomness mismatch: got %s, expected %s", decoded.randomness.String(), randomness.String())
+	if decoded.randomness != randomness {
+		t.Errorf("Randomness mismatch: got %v, expected %v", decoded.randomness, randomness)
 	}
 }
 
@@ -88,10 +90,12 @@ func TestTimestampOverflow(t *testing.T) {
 }
 
 func TestRandomnessOverflow(t *testing.T) {
-
 	mutex.Lock()
 	lastTime = maxTimestamp // Set lastTime to max timestamp
-	lastRandomness = new(big.Int).Set(maxRandomness)
+	// Set lastRandomness to maximum value (all 0xFF)
+	for i := range lastRandomness {
+		lastRandomness[i] = 0xFF
+	}
 	mutex.Unlock()
 
 	_, err := NewTime(maxTimestamp) // Call NewTime with max timestamp
